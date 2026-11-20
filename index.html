@@ -14,6 +14,13 @@
 
   <main id="stage" aria-live="polite"></main>
 
+  <div class="talk-timer" id="presentationTimer" role="group" aria-label="Presentation timer">
+    <button class="timer-display" id="timerSettingsBtn" type="button" aria-label="Timer settings" aria-describedby="timerLabel timerValue" aria-haspopup="dialog" aria-controls="timerSettings" aria-expanded="false" aria-keyshortcuts="T" title="Timer settings (T)">
+      <span class="timer-label" id="timerLabel">Elapsed</span>
+      <span class="timer-value" id="timerValue" role="timer" aria-live="off">00:00</span>
+    </button>
+    <button class="timer-toggle" id="timerToggle" type="button" aria-label="Start presentation timer" title="Start timer"></button>
+  </div>
   <nav class="hud" aria-label="Presentation controls">
     <button class="hud-btn" id="prevBtn" aria-label="Previous">&#8249;</button>
     <button class="hud-count" id="counter" type="button" aria-label="Jump to slide" aria-haspopup="dialog" aria-controls="slidePicker" aria-expanded="false" aria-keyshortcuts="G" title="Jump to slide (G)" disabled>1 / 1</button>
@@ -26,6 +33,34 @@
     </header>
     <ol class="jump-list" id="slideList"></ol>
     <p class="slide-picker-hint">Choose a slide &middot; Esc to close</p>
+  </dialog>
+  <dialog class="slide-picker timer-settings" id="timerSettings" aria-labelledby="timerSettingsTitle">
+    <header class="slide-picker-head">
+      <h2 id="timerSettingsTitle">Timer settings</h2>
+      <button class="hud-btn" id="closeTimerSettings" type="button" aria-label="Close timer settings">&#215;</button>
+    </header>
+    <form class="timer-form" id="timerForm">
+      <label>Presentation length (minutes)
+        <input id="timerMinutes" type="number" min="1" step="1" value="20" inputmode="numeric" required>
+      </label>
+      <label>Display
+        <select id="timerMode">
+          <option value="elapsed">Elapsed time (count up)</option>
+          <option value="countdown">Countdown</option>
+        </select>
+      </label>
+      <label>Start mode
+        <select id="timerStartMode">
+          <option value="auto">Automatically on first advance</option>
+          <option value="manual">Manually with Start</option>
+        </select>
+      </label>
+      <p class="timer-help">Apply keeps elapsed time. Reset starts fresh using these settings. Start mode applies before the timer starts or after a reset.</p>
+      <div class="timer-actions">
+        <button id="timerReset" type="button">Reset timer</button>
+        <button class="timer-apply" type="submit">Apply</button>
+      </div>
+    </form>
   </dialog>
   <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
   <div class="blackout" id="blackout" aria-hidden="true"></div>

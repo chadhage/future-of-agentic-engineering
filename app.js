@@ -53,6 +53,8 @@
     wrench: '<path d="M14.5 6.5a4 4 0 0 0 5 5L21 13l-8 8-3.5-3.5 7-7M14.5 6.5L13 5l-8 8"/><path d="M3.5 20.5l4-4"/>',
     lightbulb: '<path d="M9 17.5h6M10 20.5h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
     arrowright: '<path d="M4 12h15M14 6.5l5.5 5.5-5.5 5.5"/>',
+    play: '<path d="M8 4.5L20 12 8 19.5z"/>',
+    pause: '<path d="M8 5v14M16 5v14"/>',
     flip: '<path d="M4 9a8 8 0 0 1 14-3l2 2M20 4v4h-4M20 15a8 8 0 0 1-14 3l-2-2M4 20v-4h4"/>'
   };
   function icon(name, cls) {
@@ -385,7 +387,82 @@
   var counter = document.getElementById("counter");
   var picker = document.getElementById("slidePicker");
   var slideList = document.getElementById("slideList");
-  var slides = [], cur = 0, step = 0;
+  var timerPanel = document.getElementById("presentationTimer");
+  var timerSettings = document.getElementById("timerSettings");
+  var timerSettingsBtn = document.getElementById("timerSettingsBtn");
+  var timerToggle = document.getElementById("timerToggle");
+  var timerValue = document.getElementById("timerValue");
+  var timerLabel = document.getElementById("timerLabel");
+  var timerMinutes = document.getElementById("timerMinutes");
+  var timerMode = document.getElementById("timerMode");
+  var timerStartMode = document.getElementById("timerStartMode");
+  var timerState = { minutes: 20, mode: "elapsed", autoStart: true, elapsed: 0, startedAt: null, hasStarted: false };
+  var slides = [], cur = 0, step = 0, presentationReady = false;
+
+  function formatTime(seconds) {
+    var hours = Math.floor(seconds / 3600);
+    var minutes = Math.floor(seconds / 60) % 60;
+    return (hours ? hours + ":" : "") + String(minutes).padStart(2, "0") + ":" + String(seconds % 60).padStart(2, "0");
+  }
+
+  function updateTimer() {
+    var running = timerState.startedAt !== null;
+    var elapsed = timerState.elapsed + (running ? performance.now() - timerState.startedAt : 0);
+    var seconds = Math.floor(elapsed / 1000);
+    var remaining = timerState.minutes * 60 - seconds;
+    var countdown = timerState.mode === "countdown";
+    var label = countdown ? (remaining < 0 ? "Over time" : "Remaining") : "Elapsed";
+    var value = (countdown && remaining < 0 ? "+" : "") + formatTime(countdown ? Math.abs(remaining) : seconds);
+    if (timerLabel.textContent !== label) timerLabel.textContent = label;
+    if (timerValue.textContent !== value) timerValue.textContent = value;
+    timerPanel.setAttribute("data-warning", remaining <= 60 ? "true" : "false");
+    var action = running ? "Pause" : timerState.hasStarted ? "Resume" : "Start";
+    if (timerToggle.getAttribute("data-action") !== action) {
+      timerToggle.setAttribute("data-action", action);
+      timerToggle.setAttribute("aria-label", action + " presentation timer");
+      timerToggle.title = action + " timer";
+      timerToggle.innerHTML = icon(running ? "pause" : "play");
+    }
+  }
+
+  function setTimerRunning(running) {
+    var now = performance.now();
+    if (timerState.startedAt !== null) timerState.elapsed += now - timerState.startedAt;
+    timerState.startedAt = running ? now : null;
+    if (running) timerState.hasStarted = true;
+    updateTimer();
+  }
+
+  function openTimerSettings() {
+    timerMinutes.value = String(timerState.minutes);
+    timerMinutes.setCustomValidity("");
+    timerMode.value = timerState.mode;
+    timerStartMode.value = timerState.autoStart ? "auto" : "manual";
+    timerSettings.showModal();
+    timerSettingsBtn.setAttribute("aria-expanded", "true");
+    timerMinutes.focus();
+    timerMinutes.select();
+    hint();
+  }
+
+  function applyTimerSettings(reset) {
+    var minutes = Number(timerMinutes.value);
+    if (!Number.isSafeInteger(minutes) || minutes <= 0 || !Number.isSafeInteger(minutes * 60000)) {
+      timerMinutes.setCustomValidity("Enter a positive whole number of minutes.");
+      timerMinutes.reportValidity();
+      return;
+    }
+    timerState.minutes = minutes;
+    timerState.mode = timerMode.value;
+    timerState.autoStart = timerStartMode.value === "auto";
+    if (reset) {
+      timerState.elapsed = 0;
+      timerState.startedAt = null;
+      timerState.hasStarted = false;
+    }
+    updateTimer();
+    timerSettings.close();
+  }
 
   function build(data) {
     document.title = data.meta.title + " · " + data.meta.subtitle;
@@ -416,12 +493,16 @@
     var h = (location.hash || "").replace("#", "").split("/");
     var si = slides.findIndex(function (x) { return x.s.id === h[0]; });
     show(si >= 0 ? si : 0, si >= 0 ? Math.min(Number(h[1]) || 0, slides[si].r.steps || 0) : 0);
+    presentationReady = true;
   }
 
   function show(i, k) {
+    var previousCur = cur, previousStep = step;
     cur = Math.max(0, Math.min(slides.length - 1, i));
     var sl = slides[cur];
     step = Math.max(0, Math.min(sl.r.steps || 0, k));
+    if (presentationReady && timerState.autoStart && !timerState.hasStarted &&
+        (cur > previousCur || (cur === previousCur && step > previousStep))) setTimerRunning(true);
     slides.forEach(function (x, j) { x.el.classList.toggle("active", j === cur); x.el.setAttribute("aria-hidden", j === cur ? "false" : "true"); });
     if (sl.r.apply) sl.r.apply(sl.el, step);
     counter.textContent = (cur + 1) + " / " + slides.length;
@@ -457,8 +538,9 @@
   }
 
   document.addEventListener("keydown", function (e) {
-    if (picker.open) {
-      if (e.key === "Escape") { e.preventDefault(); picker.close(); }
+    var dialog = picker.open ? picker : timerSettings.open ? timerSettings : null;
+    if (dialog) {
+      if (e.key === "Escape") { e.preventDefault(); dialog.close(); }
       return;
     }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -469,7 +551,8 @@
     if (k === "b" || k === "B" || k === "." ) { bo.classList.toggle("on"); e.preventDefault(); return; }
     if (bo.classList.contains("on")) { bo.classList.remove("on"); e.preventDefault(); return; }
     if (k === "g" || k === "G") { e.preventDefault(); openPicker(); return; }
-    if (k === " " && t === counter) return;
+    if (k === "t" || k === "T") { e.preventDefault(); openTimerSettings(); return; }
+    if (k === " " && (t === counter || t === timerSettingsBtn || t === timerToggle)) return;
     if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter", "n", "N"].indexOf(k) >= 0) {
       if (k === "Enter" && t && t.closest && (t.closest("summary") || t.closest("a") || t.closest("button") || t.closest("[role=button]"))) return;
       e.preventDefault(); next();
@@ -482,16 +565,31 @@
   document.getElementById("nextBtn").addEventListener("click", function (e) { e.stopPropagation(); next(); });
   document.getElementById("prevBtn").addEventListener("click", function (e) { e.stopPropagation(); prev(); });
   counter.addEventListener("click", openPicker);
-  document.getElementById("closePicker").addEventListener("click", function () { picker.close(); });
-  picker.addEventListener("close", function () {
-    counter.setAttribute("aria-expanded", "false");
-    counter.focus();
+  timerSettingsBtn.addEventListener("click", openTimerSettings);
+  timerToggle.addEventListener("click", function () { setTimerRunning(timerState.startedAt === null); });
+  document.getElementById("timerForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    applyTimerSettings(false);
   });
-  picker.addEventListener("click", function (e) {
-    if (e.target !== picker) return;
-    var rect = picker.getBoundingClientRect();
-    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) picker.close();
-  });
+  document.getElementById("timerReset").addEventListener("click", function () { applyTimerSettings(true); });
+  timerMinutes.addEventListener("input", function () { timerMinutes.setCustomValidity(""); });
+
+  function bindDialog(dialog, trigger, closeButton) {
+    closeButton.addEventListener("click", function () { dialog.close(); });
+    dialog.addEventListener("close", function () {
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.focus();
+    });
+    dialog.addEventListener("click", function (e) {
+      if (e.target !== dialog) return;
+      var rect = dialog.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) dialog.close();
+    });
+  }
+  bindDialog(picker, counter, document.getElementById("closePicker"));
+  bindDialog(timerSettings, timerSettingsBtn, document.getElementById("closeTimerSettings"));
+  updateTimer();
+  setInterval(updateTimer, 250);
 
   var hintTimer;
   function hint() {

@@ -148,13 +148,14 @@
       "id": "models",
       "type": "trio",
       "kicker": "Models are plural",
-      "title": "Three kinds of intelligence to engineer with",
+      "title": "Three kinds of intelligence. One harness.",
       "items": [
         { "icon": "chat", "name": "Language models", "line": "Read, write, reason, plan", "proof": "Foundry carries closed and open-weight model families", "url": "https://blogs.microsoft.com/blog/2026/11/17/ignite-2026-building-the-frontier-ecosystem/" },
         { "icon": "branch", "name": "Decision models", "line": "Fast, cheap routing, labeling, filtering", "proof": "Microsoft-Decision-1.1, generally available (Ignite 2026)", "url": "https://blogs.microsoft.com/blog/2026/11/17/ignite-2026-building-the-frontier-ecosystem/" },
-        { "icon": "flask", "name": "Science models", "line": "Search chemistry, materials, biology", "proof": "Microsoft Discovery: new coolant prototype candidate in ~200 hours", "url": "https://azure.microsoft.com/en-us/blog/transforming-rd-with-agentic-ai-introducing-microsoft-discovery/" }
+        { "icon": "flask", "name": "Science models", "line": "Search chemistry, materials, biology", "proof": "Microsoft Discovery: new coolant prototype candidate in ~200 hours", "url": "https://azure.microsoft.com/en-us/blog/transforming-rd-with-agentic-ai-introducing-microsoft-discovery/" },
+        { "icon": "plug", "name": "Agent harness", "line": "Sets, manages and maintains context", "proof": "Curates instructions, tool results and memory; refreshes or compacts context as work evolves.", "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" }
       ],
-      "takeaway": "Your job: match the right intelligence to the task, the budget and the risk."
+      "takeaway": "Match the model to the task, budget and risk. Engineer the harness that keeps context right."
     },
     {
       "id": "skills",
