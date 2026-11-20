@@ -382,6 +382,9 @@
 
   /* ---------- Engine ---------- */
   var stage = document.getElementById("stage");
+  var counter = document.getElementById("counter");
+  var picker = document.getElementById("slidePicker");
+  var slideList = document.getElementById("slideList");
   var slides = [], cur = 0, step = 0;
 
   function build(data) {
@@ -391,13 +394,25 @@
       var el = document.createElement("section");
       el.className = "slide s-" + s.type;
       el.id = s.id;
-      el.setAttribute("aria-label", s.title || s.question || s.myth || s.kicker || s.id);
+      el.setAttribute("aria-label", s.title || s.question || s.myth || s.line || s.kicker || s.id);
       el.innerHTML = r.html;
       stage.appendChild(el);
       var obj = { el: el, r: r, s: s };
       if (r.bind) r.bind(el, function (k) { goStep(i, k); });
       slides.push(obj);
     });
+    slideList.innerHTML = slides.map(function (sl, i) {
+      return '<li><button type="button" class="jump-item"><span class="jump-number">' +
+        String(i + 1).padStart(2, "0") + '</span><span>' + esc(sl.el.getAttribute("aria-label")) + "</span></button></li>";
+    }).join("");
+    slideList.querySelectorAll("button").forEach(function (button, i) {
+      button.addEventListener("click", function () {
+        picker.close();
+        slides[i].el.scrollTop = 0;
+        show(i, 0);
+      });
+    });
+    counter.disabled = false;
     var h = (location.hash || "").replace("#", "").split("/");
     var si = slides.findIndex(function (x) { return x.s.id === h[0]; });
     show(si >= 0 ? si : 0, si >= 0 ? Math.min(Number(h[1]) || 0, slides[si].r.steps || 0) : 0);
@@ -409,7 +424,8 @@
     step = Math.max(0, Math.min(sl.r.steps || 0, k));
     slides.forEach(function (x, j) { x.el.classList.toggle("active", j === cur); x.el.setAttribute("aria-hidden", j === cur ? "false" : "true"); });
     if (sl.r.apply) sl.r.apply(sl.el, step);
-    document.getElementById("counter").textContent = (cur + 1) + " / " + slides.length;
+    counter.textContent = (cur + 1) + " / " + slides.length;
+    counter.setAttribute("aria-label", "Jump to slide (current: " + (cur + 1) + " of " + slides.length + ")");
     var total = slides.length - 1 || 1;
     var frac = (cur + (sl.r.steps ? step / (sl.r.steps + 1) : 0)) / total;
     document.getElementById("progressBar").style.width = Math.min(100, frac * 100) + "%";
@@ -426,7 +442,25 @@
     else if (cur > 0) show(cur - 1, slides[cur - 1].r.steps || 0);
   }
 
+  function openPicker() {
+    if (counter.disabled || picker.open) return;
+    var buttons = slideList.querySelectorAll("button");
+    buttons.forEach(function (button, i) {
+      if (i === cur) button.setAttribute("aria-current", "true");
+      else button.removeAttribute("aria-current");
+    });
+    picker.showModal();
+    counter.setAttribute("aria-expanded", "true");
+    buttons[cur].focus();
+    buttons[cur].scrollIntoView({ block: "nearest" });
+    hint();
+  }
+
   document.addEventListener("keydown", function (e) {
+    if (picker.open) {
+      if (e.key === "Escape") { e.preventDefault(); picker.close(); }
+      return;
+    }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     var t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
@@ -434,6 +468,8 @@
     var k = e.key;
     if (k === "b" || k === "B" || k === "." ) { bo.classList.toggle("on"); e.preventDefault(); return; }
     if (bo.classList.contains("on")) { bo.classList.remove("on"); e.preventDefault(); return; }
+    if (k === "g" || k === "G") { e.preventDefault(); openPicker(); return; }
+    if (k === " " && t === counter) return;
     if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter", "n", "N"].indexOf(k) >= 0) {
       if (k === "Enter" && t && t.closest && (t.closest("summary") || t.closest("a") || t.closest("button") || t.closest("[role=button]"))) return;
       e.preventDefault(); next();
@@ -445,6 +481,17 @@
   });
   document.getElementById("nextBtn").addEventListener("click", function (e) { e.stopPropagation(); next(); });
   document.getElementById("prevBtn").addEventListener("click", function (e) { e.stopPropagation(); prev(); });
+  counter.addEventListener("click", openPicker);
+  document.getElementById("closePicker").addEventListener("click", function () { picker.close(); });
+  picker.addEventListener("close", function () {
+    counter.setAttribute("aria-expanded", "false");
+    counter.focus();
+  });
+  picker.addEventListener("click", function (e) {
+    if (e.target !== picker) return;
+    var rect = picker.getBoundingClientRect();
+    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) picker.close();
+  });
 
   var hintTimer;
   function hint() {
